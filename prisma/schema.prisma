@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Authentication ─────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Public Pages ───────────────────────────────────────────
+
+model Page {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String   @default("")
+  template    Json?
+  isPublished Boolean  @default(false)
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  metaKeywords    String?
+  ogImage         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("pages")
+}
+
+// ─── Product Categories ─────────────────────────────────────
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  image       String?
+  sortOrder   Int       @default(0)
+  isPublished Boolean   @default(true)
+  products    Product[]
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  metaKeywords    String?
+  ogImage         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
+
+// ─── Products ───────────────────────────────────────────────
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  content     String   @default("")
+  images      Json?    // Array of image URLs
+  specs       Json?    // Key-value specifications
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(false)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  rfqFormId String?
+  rfqForm   RfqFormConfig? @relation(fields: [rfqFormId], references: [id], onDelete: SetNull)
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  metaKeywords    String?
+  ogImage         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("products")
+}
+
+// ─── RFQ Form Configurations ────────────────────────────────
+
+model RfqFormConfig {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  fields      Json     // Array of field definitions: [{name, label, type, required, options}]
+  products    Product[]
+  submissions RfqSubmission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("rfq_form_configs")
+}
+
+// ─── RFQ Submissions ────────────────────────────────────────
+
+model RfqSubmission {
+  id        String @id @default(cuid())
+  formData  Json   // Submitted values keyed by field name
+  status    String @default("new") // new, reviewed, responded
+
+  formId String
+  form   RfqFormConfig @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  // Contact info (always collected)
+  name    String
+  email   String
+  phone   String?
+  company String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("rfq_submissions")
+}
+
+// ─── Blog ───────────────────────────────────────────────────
+
+model Blog {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  excerpt      String?
+  content      String   @default("")
+  thumbnail    String?
+  featuredImage String?
+  tags         String[] // PostgreSQL array
+  isPublished  Boolean  @default(false)
+  publishedAt  DateTime?
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  metaKeywords    String?
+  ogImage         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("blogs")
+}
+
+// ─── Media Library ──────────────────────────────────────────
+
+model Media {
+  id               String  @id @default(cuid())
+  s3Key            String  @unique
+  url              String
+  originalFilename String
+  displayName      String
+  mimeType         String
+  size             Int
+  altText          String?
+  folder           String  @default("general")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("media_files")
+}
+
+// ─── Site Settings (Header & Footer) ────────────────────────
+
+model SiteSettings {
+  id        String @id @default("singleton")
+  
+  // Header
+  logoUrl      String?
+  siteName     String   @default("My Site")
+  headerLinks  Json?    // [{label, url, order}]
+
+  // Footer
+  footerLinks    Json?  // [{label, url, order}]
+  socialLinks    Json?  // [{platform, url, icon}]
+  copyrightText  String @default("© 2026 All rights reserved.")
+  footerContent  String?
+
+  // Storage setting (s3 or local)
+  storageBackend String @default("s3")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
